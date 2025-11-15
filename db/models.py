@@ -8,14 +8,11 @@ from sqlalchemy import (
     Table,
     Text,
     UniqueConstraint,
-    create_engine,
     func,
 )
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.orm import relationship
 
-engine = create_engine("postgresql+psycopg2://admin:password@localhost/twitter_db")
-Base = declarative_base()
-SessionLocal = sessionmaker(bind=engine)
+from .database import Base
 
 # Ассоциационная таблица tweets <-> medias (many-to-many)
 tweet_medias = Table(
@@ -145,12 +142,3 @@ class Like(Base):
 
 # Дополнительно: индексы для ускорения выборок ленты
 Index("ix_tweets_author_created", Tweet.author_id, Tweet.created_at.desc())
-
-
-# Утилиты создания БД
-def create_all():
-    Base.metadata.create_all(bind=engine)
-
-
-def drop_all():
-    Base.metadata.drop_all(bind=engine)
