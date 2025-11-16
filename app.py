@@ -3,9 +3,8 @@ from typing import Annotated, Any, Dict
 
 import uvicorn
 from fastapi import Depends, FastAPI, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import FileResponse, JSONResponse
 
 from schemas.user_sch import UserOutSchema
 from utils.auth import authenticate_user
@@ -20,7 +19,7 @@ STATIC_DIR = ROOT_DIR / "server" / "static"
 # ------------ 1. ОТДАЧА СТАТИКИ ------------
 
 # Все файлы из server/static доступны по /static/*
-app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # ------------ 2. API (пример из задания) ------------
@@ -64,7 +63,7 @@ async def get_info_about_me(
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
     # catch-all отдаёт SPA index.html только если путь **не начинается с /static или /api**
-    if full_path.startswith(("static", "api")):
+    if full_path.startswith(("server", "static")):
         return JSONResponse(status_code=404, content={"detail": "Not Found"})
     return FileResponse(STATIC_DIR / "index.html")
 
