@@ -5,7 +5,11 @@ import uvicorn
 from fastapi import Depends, FastAPI, status
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from db.database import async_get_db
+from db.models import User
+from db.utils import get_user_by_id
 from schemas.user_sch import UserOutSchema
 from utils.auth import authenticate_user
 
@@ -35,12 +39,12 @@ async def get_info_about_me(
     user["id"] = current_user.id
     user["name"] = current_user.name
     all_followers = list()
-    followers = current_user.followers
-    for follower in followers:
-        follower_user = dict()
-        follower_user["id"] = follower.id
-        follower_user["name"] = follower.name
-        all_followers.append(follower_user)
+    # followers = current_user.followers
+    # for follower in followers:
+    #     follower_user = dict()
+    #     follower_user["id"] = follower.id
+    #     follower_user["name"] = follower.name
+    #     all_followers.append(follower_user)
     user["followers"] = all_followers
     all_followings = list()
     followings = current_user.following
@@ -53,6 +57,40 @@ async def get_info_about_me(
     answer: Dict[str, Any] = dict()
     answer["user"] = user
     answer["result"] = True
+    return JSONResponse(content=answer, status_code=200)
+
+
+@app.get("/api/users/{user_id}", status_code=status.HTTP_200_OK)
+async def get_users_info_by_id(
+    user_id: int,
+    session: AsyncSession = Depends(async_get_db),
+    current_user: Annotated[User, "User model obtained from the api key"] = Depends(
+        authenticate_user
+    ),
+):
+    user_ = await get_user_by_id(user_id=user_id, session=session)
+    user = dict()
+    user["id"] = user_.id
+    user["name"] = user_.name
+    all_followers = list()
+    # followers = user_.followers
+    # for follower in followers:
+    #     follower_user = dict()
+    #     follower_user["id"] = follower.id
+    #     follower_user["name"] = follower.username
+    #     all_followers.append(follower_user)
+    user["followers"] = all_followers
+    all_followings = list()
+    followings = user_.following
+    for following in followings:
+        following_user = dict()
+        following_user["id"] = following.id
+        following_user["name"] = following.name
+        all_followings.append(following_user)
+    user["followings"] = all_followings
+    answer: Dict[str, Any] = dict()
+    answer["result"] = True
+    answer["user"] = user
     return JSONResponse(content=answer, status_code=200)
 
 
