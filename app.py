@@ -2,14 +2,15 @@ import pathlib
 from typing import Annotated, Any, Dict
 
 import uvicorn
-from fastapi import Depends, FastAPI, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.database import async_get_db
 from db.models import User
-from db.utils import get_user_by_id
+from db.utils import check_follow_user_ability, get_user_by_id
+from schemas.base_sch import DefaultSchema
 from schemas.user_sch import UserOutSchema
 from utils.auth import authenticate_user
 
@@ -26,7 +27,7 @@ STATIC_DIR = ROOT_DIR / "server" / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
-# ------------ 2. API (пример из задания) ------------
+# ------------ 2. API user------------
 
 
 @app.get("/api/users/me", status_code=status.HTTP_200_OK)
@@ -92,6 +93,56 @@ async def get_users_info_by_id(
     answer["result"] = True
     answer["user"] = user
     return JSONResponse(content=answer, status_code=200)
+
+
+@app.post(
+    "/users/{user_id}/follow",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DefaultSchema,
+)
+async def follow_user(
+    user_id: int,
+    current_user: Annotated[User, "User model obtained from the api key"] = Depends(
+        authenticate_user
+    ),
+    session: AsyncSession = Depends(async_get_db),
+):
+    user_to_follow = await get_user_by_id(user_id, session)
+    following_ability = await check_follow_user_ability(current_user, user_to_follow)
+    if following_ability:
+        user_to_follow.followers.append(current_user)
+        await session.commit()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You already follow that user!",
+        )
+    return {"result": True}
+
+
+@app.delete(
+    "/users/{user_id}/follow",
+    status_code=status.HTTP_200_OK,
+    response_model=DefaultSchema,
+)
+async def unsubscribe_from_user(
+    user_id: int,
+    current_user: Annotated[User, "User model obtained from the api key"] = Depends(
+        authenticate_user
+    ),
+    session: AsyncSession = Depends(async_get_db),
+):
+    follower_deleted = await get_user_by_id(user_id, session)
+
+    if follower_deleted not in current_user.following:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are not following this user.",
+        )
+
+    current_user.following.remove(follower_deleted)
+    await session.commit()
+    return {"result": True}
 
 
 # ------------ 3. SPA CATCH-ALL ------------
