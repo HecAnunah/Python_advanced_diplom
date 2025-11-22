@@ -1,0 +1,17 @@
+Step 1: Клонируем репразиторий
+Clone команда для клонирования
+git clone https://gitlab.skillbox.ru/adrian_babira/python_advanced_diploma.git
+
+Step 2: Docker-Compose
+Enter заходим в проект из терминала:
+cd python_advanced_diploma/
+
+Run из терминала для создания контейнеров:
+docker compose build
+
+Run запускаем что бы поднять наш образ:
+docker compose up
+
+Step 3: Проверяем работу:
+Open в браузере http://localhost стартовая страница.
+Open http://localhost:8000/docs открыть страницу Swagger
