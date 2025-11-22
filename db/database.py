@@ -11,7 +11,9 @@ load_dotenv("app.local.env")  # для локальной разработки
 
 
 class Base(AsyncAttrs, DeclarativeBase):
-    pass
+    def _repr(self, **fields):
+        fields_str = ", ".join(f"{k}={v!r}" for k, v in fields.items())
+        return f"<{self.__class__.__name__} {fields_str}>"
 
 
 DATABASE_URL = (
@@ -19,6 +21,8 @@ DATABASE_URL = (
     f'{os.environ.get("DB_PASSWORD")}@{os.environ.get("DB_HOST")}'
     f':5432/{os.environ.get("DB_NAME")}'
 )
+
+print(DATABASE_URL + "+++++++++++++++++++++++++++++++++++++++")
 engine = create_async_engine(DATABASE_URL, echo=True, future=True)
 session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

@@ -1,144 +1,100 @@
-from sqlalchemy import (
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Table,
-    Text,
-    UniqueConstraint,
-    func,
-)
-from sqlalchemy.orm import relationship
+from datetime import datetime
+from typing import List
+
+from sqlalchemy import Column, ForeignKey, Integer, String, Table, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
-# Ассоциационная таблица tweets <-> medias (many-to-many)
-tweet_medias = Table(
-    "tweet_medias",
+# User
+user_to_user = Table(
+    "user_to_user",
     Base.metadata,
-    Column(
-        "tweet_id",
-        Integer,
-        ForeignKey("tweets.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column(
-        "media_id",
-        Integer,
-        ForeignKey("medias.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
+    Column("follower_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("following_id", Integer, ForeignKey("users.id"), primary_key=True),
 )
-
-
-# кто на кого подписан
-class Follow(Base):
-    __tablename__ = "follows"
-    follower_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    following_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(150), nullable=False)
-    api_key = Column(
-        String(128), unique=True, nullable=False, index=True
-    )  # по этому полю будем искать пользователя
-    avatar = Column(String(300), nullable=True)  # ссылка/путь к аватару (опционально)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+    api_key: Mapped[str] = mapped_column(String(255))
+    username: Mapped[str] = mapped_column(String(255), unique=True, index=True)
 
-    tweets = relationship(
-        "Tweet", back_populates="author", cascade="all, delete-orphan"
+    tweets: Mapped[List["Tweet"]] = relationship(
+        backref="user", cascade="all, delete-orphan"
     )
-    likes = relationship("Like", back_populates="user", cascade="all, delete-orphan")
+    likes: Mapped[List["Like"]] = relationship(
+        backref="user", cascade="all, delete-orphan"
+    )
 
-    # following: пользователи, на которых я подписан
-    following = relationship(
+    following: Mapped[List["None"]] = relationship(
         "User",
-        secondary="follows",
-        primaryjoin=id == Follow.follower_id,
-        secondaryjoin=id == Follow.following_id,
+        secondary=user_to_user,
+        primaryjoin=lambda: User.id == user_to_user.c.follower_id,
+        secondaryjoin=lambda: User.id == user_to_user.c.following_id,
         backref="followers",
+        lazy="selectin",
     )
 
     def __repr__(self):
-        return f"<User id={self.id} name={self.name!r}>"
-
-
-class Media(Base):
-    __tablename__ = "medias"
-
-    id = Column(Integer, primary_key=True)
-    filename = Column(String(300), nullable=False)  # оригинальное имя
-    storage_path = Column(
-        String(500), nullable=False
-    )  # где лежит файл (относительный путь или URL)
-    mime_type = Column(String(100), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    tweets = relationship("Tweet", secondary=tweet_medias, back_populates="medias")
-
-    def __repr__(self):
-        return f"<Media id={self.id} file={self.filename!r}>"
-
-
-# Твит
-class Tweet(Base):
-    __tablename__ = "tweets"
-
-    id = Column(Integer, primary_key=True)
-    author_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    content = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    # дополнительное поле для ускорения сортировки по "популярности" (можно поддерживать триггером / обновлять при like)
-    like_count = Column(
-        Integer, nullable=False, default=0, server_default="0", index=True
-    )
-
-    author = relationship("User", back_populates="tweets")
-    medias = relationship("Media", secondary=tweet_medias, back_populates="tweets")
-    likes = relationship("Like", back_populates="tweet", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return (
-            f"<Tweet id={self.id} author_id={self.author_id} likes={self.like_count}>"
+        return self._repr(
+            id=self.id,
+            api_key=self.api_key,
+            username=self.username,
         )
 
 
-class Like(Base):
-    __tablename__ = "likes"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    tweet_id = Column(
-        Integer, ForeignKey("tweets.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+# Твит *
+class Tweet(Base):
+    __tablename__ = "tweets"
 
-    user = relationship("User", back_populates="likes")
-    tweet = relationship("Tweet", back_populates="likes")
-
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id", "tweet_id", name="uq_user_tweet_like"
-        ),  # нельзя лайкать дважды
-    )
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    create_date: Mapped[datetime] = mapped_column(server_default=func.now())
+    tweet_data: Mapped[str] = mapped_column(String(2500))
+    media: Mapped[List["Media"]] = relationship(backref="tweets", cascade="all, delete")
+    likes: Mapped[List["Like"]] = relationship(backref="tweets", cascade="all, delete")
 
     def __repr__(self):
-        return f"<Like id={self.id} user={self.user_id} tweet={self.tweet_id}>"
+        return self._repr(
+            id=self.id,
+            user_id=self.user_id,
+            create_date=self.create_date,
+            tweet_data=self.tweet_data,
+        )
 
 
-# Дополнительно: индексы для ускорения выборок ленты
-Index("ix_tweets_author_created", Tweet.author_id, Tweet.created_at.desc())
+# Like models *
+class Like(Base):
+    __tablename__ = "likes"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    tweet_id: Mapped[int] = mapped_column(ForeignKey("tweets.id"), nullable=False)
+
+    def __repr__(self):
+        return self._repr(
+            id=self.id,
+            user_id=self.user_id,
+            tweets_id=self.tweet_id,
+        )
+
+
+# media
+
+
+class Media(Base):
+    __tablename__ = "media"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+
+    media_path: Mapped[str] = mapped_column(String(255))  # *
+    tweet_id: Mapped[int] = mapped_column(ForeignKey("tweets.id"), nullable=True)
+
+    def __repr__(self):
+        return self._repr(
+            id=self.id,
+            media_path=self.media_path,
+            tweet_id=self.tweet_id,
+        )

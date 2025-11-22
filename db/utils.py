@@ -32,6 +32,7 @@ async def get_user_by_api_key(
         .where(User.api_key == api_key)
         .options(
             selectinload(User.following),
+            selectinload(User.followers),
         )
     )
     user = await session.execute(query)
@@ -45,7 +46,7 @@ async def get_user_by_id(user_id: int, session: AsyncSession = Depends(async_get
         .where(User.id == user_id)
         .options(
             selectinload(User.following),
-            # selectinload(User.followers),
+            selectinload(User.followers),
         )
     )
     user = query.scalars().one_or_none()
