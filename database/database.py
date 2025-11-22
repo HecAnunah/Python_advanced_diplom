@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-load_dotenv("app.local.env")  # для локальной разработки
+load_dotenv("app.env")  # для локальной разработки
 
 
 class Base(AsyncAttrs, DeclarativeBase):
@@ -17,9 +17,9 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 
 DATABASE_URL = (
-    f'postgresql+asyncpg://{os.environ.get("DB_USERNAME")}:'
-    f'{os.environ.get("DB_PASSWORD")}@{os.environ.get("DB_HOST")}'
-    f':5432/{os.environ.get("DB_NAME")}'
+    f'postgresql+asyncpg://{os.environ.get("POSTGRES_USER")}:'  # <--- здесь
+    f'{os.environ.get("POSTGRES_PASSWORD")}@{os.environ.get("DB_HOST")}'
+    f':{os.environ.get("DB_PORT")}/{os.environ.get("POSTGRES_DB")}'  # <--- здесь
 )
 
 print(DATABASE_URL + "+++++++++++++++++++++++++++++++++++++++")
@@ -28,10 +28,10 @@ session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False
 
 
 async def async_get_db() -> AsyncGenerator[AsyncSession, None]:
-    async_session = session
-    async with async_session() as db:
+    async with session() as db:
         try:
             yield db
             await db.commit()
         except SQLAlchemyError:
             await db.rollback()
+            raise

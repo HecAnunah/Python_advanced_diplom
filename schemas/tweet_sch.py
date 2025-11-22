@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from db.models import Like as LikeModel
+from database.models import Like as LikeModel
 
 from .base_sch import DefaultSchema
 from .media_sch import Media

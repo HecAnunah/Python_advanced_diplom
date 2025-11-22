@@ -13,9 +13,9 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app import app
-from db.database import Base
-from db.database import async_get_db as get_db_session
-from db.models import Tweet, User
+from database.database import Base
+from database.database import async_get_db as get_db_session
+from database.models import Tweet, User
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / "app_test.env"

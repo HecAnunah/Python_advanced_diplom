@@ -1,24 +1,18 @@
-from sqlalchemy import select
+import asyncio
+
 from sqlalchemy.exc import IntegrityError
 
 from .database import Base, engine, session
 from .models import Like, Media, Tweet, User, user_to_user
 
 
-async def create_all_if_not_exists():
+async def create_db_models():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def seed():
     async with session() as db:
-        result = await db.execute(select(User))
-        users = result.scalars().all()
-
-        if users:
-            print("DB already has users. Seed skipped.")
-            return
-
         try:
             # --- USERS ---
             u1 = User(username="testov", api_key="test")
@@ -88,3 +82,12 @@ async def seed():
         except IntegrityError as e:
             await db.rollback()
             print("Integrity error:", e)
+
+
+# async def main():
+#     await create_db_models()
+#     await seed()
+
+
+# if __name__ == "__main__":
+#     asyncio.run(main())

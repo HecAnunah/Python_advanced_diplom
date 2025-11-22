@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 
-from db.models import User
+from database.models import User
 
 from .conftest import unauthorized_structure_response
 

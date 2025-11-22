@@ -1,19 +1,19 @@
 import pathlib
-from contextlib import asynccontextmanager
 from typing import Annotated, Any, Dict, Union
 
 import uvicorn
 from aiofiles import os as aiofiles_os
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
+from fastapi.concurrency import asynccontextmanager
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.database import async_get_db, engine
-from db.init_db import create_all_if_not_exists, seed
-from db.models import Like, Media, Tweet, User
-from db.utils import (
+from database.database import async_get_db, engine
+from database.init_db import create_db_models, seed
+from database.models import Like, Media, Tweet, User
+from database.utils import (
     associate_media_with_tweet,
     check_follow_user_ability,
     get_all_following_tweets,
@@ -36,17 +36,19 @@ from utils.exceptions import (
 from utils.for_file import save_uploaded_file
 from utils.setting import MEDIA_PATH
 
+session = async_get_db()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_all_if_not_exists()
+    # Создание таблиц и заполнение начальными данными
+    await create_db_models()
     await seed()
     yield
-    if engine is not None:
-        await engine.dispose()
 
 
 app = FastAPI(lifespan=lifespan)
+
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(HTTPException, custom_http_exception_handler)
